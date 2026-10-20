@@ -6,3 +6,4 @@ web-ext-artifacts/
 web-ext-config.*
 *.xpi
 *.zip
+node_modules/

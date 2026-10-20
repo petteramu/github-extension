@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "scripts": {
+    "build": "web-ext build",
+    "lint": "web-ext lint --self-hosted"
+  },
+  "devDependencies": {
+    "web-ext": "10.8.0"
+  },
+  "webExt": {
+    "ignoreFiles": ["README.md", "updates.json", "package.json", "package-lock.json"]
+  }
+}

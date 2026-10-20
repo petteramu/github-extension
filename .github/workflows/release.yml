@@ -1,0 +1,81 @@
+name: Release
+
+# Push a tag matching the manifest version (e.g. v1.0.1) to sign the extension
+# on addons.mozilla.org (unlisted), publish a GitHub release with the signed
+# .xpi and an unsigned .zip, and update updates.json so installed Firefox
+# copies auto-update.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      ASSET: github-pr-reverse
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+
+      - name: Check tag matches manifest version
+        run: |
+          version=$(jq -r .version manifest.json)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match manifest version $version"
+            exit 1
+          fi
+
+      # Locked dependency tree, since web-ext runs with the AMO secrets below.
+      - name: Install web-ext
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      # Files left out of the package are listed under "webExt" in package.json.
+      - name: Build unsigned package
+        run: npx web-ext build --filename "$ASSET.zip"
+
+      - name: Sign for Firefox (unlisted)
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: npx web-ext sign --channel=unlisted --approval-timeout=3600000
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mv web-ext-artifacts/*.xpi "$ASSET.xpi"
+          mv "web-ext-artifacts/$ASSET.zip" "$ASSET.zip"
+          gh release create "$GITHUB_REF_NAME" "$ASSET.xpi" "$ASSET.zip" --title "$GITHUB_REF_NAME" --generate-notes
+
+      - name: Point Firefox auto-updates at this release
+        run: |
+          id=$(jq -r .browser_specific_settings.gecko.id manifest.json)
+          version=$(jq -r .version manifest.json)
+          hash=$(sha256sum "$ASSET.xpi" | cut -d' ' -f1)
+          url="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/$ASSET.xpi"
+          # Retry from a fresh main if something else was pushed in the meantime.
+          for attempt in 1 2 3; do
+            git fetch --depth=1 origin main
+            git checkout -B main FETCH_HEAD
+            jq -n --arg id "$id" --arg version "$version" --arg url "$url" --arg hash "sha256:$hash" \
+              '{addons: {($id): {updates: [{version: $version, update_link: $url, update_hash: $hash}]}}}' > updates.json
+            git add updates.json
+            git diff --cached --quiet && exit 0
+            git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "Update updates.json for $GITHUB_REF_NAME"
+            git push origin main && exit 0
+            sleep 10
+          done
+          echo "::error::Could not push updates.json to main"
+          exit 1
