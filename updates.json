@@ -1,0 +1,13 @@
+{
+  "addons": {
+    "github-pr-reverse@petter.amundsen": {
+      "updates": [
+        {
+          "version": "1.0.1",
+          "update_link": "https://github.com/petteramu/github-extension/releases/download/v1.0.1/github-pr-reverse.xpi",
+          "update_hash": "sha256:812094d8bf5f9d40d97fa934cfd8237cb93bd822257b73ea93e32828ec3408ab"
+        }
+      ]
+    }
+  }
+}
