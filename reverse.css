@@ -1,0 +1,41 @@
+/*
+ * Newest timeline items first on the PR conversation tab.
+ * .js-discussion is flattened into .pull-discussion-timeline so its items and
+ * the comment box (#issue-comment-box) are flex siblings that can be ordered.
+ */
+.pull-discussion-timeline {
+  display: flex !important;
+  flex-direction: column-reverse !important;
+}
+
+.pull-discussion-timeline > .js-discussion {
+  display: contents !important;
+}
+
+/* Restore the indentation .js-discussion gave its items (ml-md-6 + pl-md-3). */
+@media (min-width: 768px) {
+  .pull-discussion-timeline > .js-discussion > :not(rails-partial),
+  .pull-discussion-timeline > .js-discussion > rails-partial > * {
+    margin-left: 56px;
+  }
+
+  /* TimelineItem has its own 16px margin on top of that. */
+  .pull-discussion-timeline > .js-discussion > .TimelineItem,
+  .pull-discussion-timeline > .js-discussion > rails-partial > .TimelineItem {
+    margin-left: 72px;
+  }
+}
+
+/* PR description above everything, including the comment box: in column-reverse the highest order renders first. */
+.pull-discussion-timeline > .js-discussion .js-comment-container[data-gid^="PR_"] {
+  order: 1;
+}
+
+/* Reviewer filter (see reviewer-filter.js). */
+.ghpr-hidden {
+  display: none !important;
+}
+
+.ghpr-filter-btn[aria-pressed="true"] {
+  color: var(--fgColor-accent, #0969da) !important;
+}

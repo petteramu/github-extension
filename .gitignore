@@ -1,0 +1,8 @@
+.claude/
+web-ext-artifacts/
+.amo-upload-uuid
+.web-extension-id
+.env*
+web-ext-config.*
+*.xpi
+*.zip
